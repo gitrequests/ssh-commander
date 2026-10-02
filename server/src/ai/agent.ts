@@ -497,6 +497,7 @@ export class AgentSession {
           signal: this.loopAbort.signal,
           onToken: (token) => tokenFilter.push(token),
           lang: this.lang,
+          sessionId: this.dialogueId,
         });
         tokenFilter.flush();
         assistant = result.message;
@@ -566,6 +567,7 @@ export class AgentSession {
             signal: this.loopAbort.signal,
             onToken: (token) => tokenFilter.push(token),
             lang: this.lang,
+            sessionId: this.dialogueId,
           });
           tokenFilter.flush();
           assistant = result.message;

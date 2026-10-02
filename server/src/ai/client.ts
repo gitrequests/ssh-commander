@@ -39,7 +39,16 @@ export interface StreamOptions {
   onToolCalls?: (calls: ToolCall[]) => void;
   /** Язык сессии агента — для пользовательски-видимых ошибок (таймаут). */
   lang?: PromptLang;
+  /**
+   * Стабильный id диалога для sticky-routing у провайдеров вроде OpenCode Go
+   * (`x-opencode-session`). Без него Go отвечает 400 MissingSessionID.
+   * Переиспользуется на всех шагах одного диалога (чат и plan).
+   */
+  sessionId?: string;
 }
+
+/** User-Agent своего агента: OpenCode Go отклоняет generic SDK/fetch UA. */
+const USER_AGENT = 'ssh-commander/0.1.1';
 
 /**
  * Токены вызова из `usage` ответа API (docs/ai-costs-plan.md, решение 1).
@@ -144,14 +153,23 @@ export async function streamChatCompletion(opts: StreamOptions): Promise<ChatCom
     ? AbortSignal.any([opts.signal, connectTimeout.signal])
     : connectTimeout.signal;
 
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+    authorization: `Bearer ${apiKey}`,
+    'user-agent': USER_AGENT,
+  };
+  // OpenCode Go требует стабильный session id на каждый запрос диалога
+  // (https://opencode.ai/docs/go/#where-can-i-use-it). Другие провайдеры
+  // неизвестный заголовок игнорируют.
+  if (opts.sessionId) {
+    headers['x-opencode-session'] = opts.sessionId;
+  }
+
   let res: Response;
   try {
     res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${apiKey}`,
-      },
+      headers,
       body,
       signal,
     });
